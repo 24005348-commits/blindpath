@@ -1,1 +1,246 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BlindPath | Accessible City</title>
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      font-family: Arial, sans-serif;
+      color: #17212b;
+      background: #f4f7fa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      background: #123d50;
+      color: white;
+      padding: 22px 18px;
+    }
+    header h1 { margin: 0 0 8px; font-size: 30px; }
+    header p { margin: 0; line-height: 1.5; }
+    main { max-width: 1000px; margin: auto; padding: 16px; }
+    .panel {
+      background: white; border-radius: 14px;
+      padding: 18px; margin-bottom: 16px;
+      box-shadow: 0 2px 8px #15253612;
+    }
+    h2 { font-size: 22px; margin-top: 0; }
+    #map { height: 360px; border-radius: 10px; }
+    button, input, select, textarea {
+      font: inherit; width: 100%; margin-top: 8px;
+      padding: 13px; border-radius: 8px;
+    }
+    button {
+      border: 0; background: #075e73;
+      color: white; font-weight: bold; cursor: pointer;
+      min-height: 48px;
+    }
+    button:focus, input:focus, textarea:focus, select:focus {
+      outline: 3px solid #e4a900; outline-offset: 2px;
+    }
+    .secondary { background: #e7f1f4; color: #123d50; }
+    .grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .stat { background: #eaf3f5; padding: 14px; border-radius: 9px; }
+    .stat strong { font-size: 28px; display: block; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    #message { line-height: 1.6; }
+    .notice { font-size: 14px; line-height: 1.6; color: #394c58; }
+    footer { padding: 18px; text-align: center; font-size: 14px; }
+    @media (max-width: 520px) {
+      #map { height: 310px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>BlindPath</h1>
+  <p>Accessible routes. Inclusive streets. A better city for everyone.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Accessible route map</h2>
+    <p class="notice">
+      Demo map only. Route and obstacle data are illustrative,
+      not verified for safe independent travel.
+    </p>
+    <div id="map" role="application" aria-label="Demonstration map"></div>
+    <button id="speak">🔊 Read route instructions aloud</button>
+    <button class="secondary" id="routeInfo">Explain the demo route</button>
+    <p id="message" aria-live="polite">
+      Select a map marker or read the route instructions.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>Report an accessibility issue</h2>
+    <p>Help identify blocked blind paths and missing facilities.</p>
+    <form id="reportForm">
+      <label for="type">Issue type</label>
+      <select id="type" required>
+        <option value="Blocked blind path">Vehicle blocking blind path</option>
+        <option value="Missing tactile paving">Missing tactile paving</option>
+        <option value="Damaged tactile paving">Damaged tactile paving</option>
+        <option value="Unsafe crossing">Unsafe pedestrian crossing</option>
+        <option value="Indoor accessibility">Indoor accessibility issue</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label for="place">Location or landmark</label>
+      <input id="place" required
+        placeholder="e.g. building entrance or bus stop">
+
+      <label for="details">Description</label>
+      <textarea id="details" rows="3"
+        placeholder="Describe the problem"></textarea>
+
+      <button type="submit">Submit demo report</button>
+    </form>
+    <p id="reportStatus" aria-live="polite"></p>
+    <p class="notice">
+      Prototype only: reports stay in this browser session and are
+      not sent to authorities. Do not enter personal or sensitive data.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>Community accessibility insights</h2>
+    <div class="grid">
+      <div class="stat">
+        <strong id="reportCount">3</strong>
+        Demo reports
+      </div>
+      <div class="stat">
+        <strong id="hotspotCount">2</strong>
+        Example hotspots
+      </div>
+    </div>
+    <p id="hotspotText">
+      Sample data indicates that two areas may need further inspection.
+    </p>
+    <button class="secondary" id="showHotspots">
+      Show reported locations
+    </button>
+  </section>
+
+  <section class="panel">
+    <h2>Government and community collaboration</h2>
+    <p>
+      Reports can be reviewed by an authorised agency or local council.
+      Any enforcement action must be decided by the competent authority.
+    </p>
+    <p class="notice">
+      This demo does not issue summonses, contact JPJ, or verify
+      vehicle ownership. Reports require verification before action.
+    </p>
+  </section>
+</main>
+
+<footer>
+  Map data © OpenStreetMap contributors · BlindPath Hackathon Prototype
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // Demonstration coordinates near Johor Bahru, Malaysia.
+  // These are NOT verified blind paths or obstacle reports.
+  const map = L.map('map').setView([1.4927, 103.7414], 16);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const demoRoute = [
+    [1.4927, 103.7414],
+    [1.4932, 103.7420],
+    [1.4937, 103.7426],
+    [1.4942, 103.7432]
+  ];
+
+  L.polyline(demoRoute, {
+    color: '#086f9b',
+    weight: 8,
+    opacity: 0.85,
+    dashArray: '10 8'
+  }).addTo(map).bindPopup(
+    'Illustrative route only — not verified for safe travel.'
+  );
+
+  L.marker(demoRoute[0]).addTo(map)
+    .bindPopup('Demo starting point');
+
+  L.marker(demoRoute[3]).addTo(map)
+    .bindPopup('Demo destination');
+
+  const obstacles = [
+    { point: [1.4932, 103.7420], text: 'Example blocked path' },
+    { point: [1.4937, 103.7426], text: 'Example missing tactile paving' }
+  ];
+
+  obstacles.forEach(item => {
+    L.circleMarker(item.point, {
+      radius: 9, color: '#b42318',
+      fillColor: '#ef4444', fillOpacity: 0.9
+    }).addTo(map).bindPopup(item.text + ' (demo data)');
+  });
+
+  const routeText =
+    'Demo route. Start at the example starting point. ' +
+    'Follow the blue dashed line to the example destination. ' +
+    'This route has not been checked for accessibility or safety.';
+
+  document.getElementById('speak').addEventListener('click', () => {
+    document.getElementById('message').textContent = routeText;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const speech = new SpeechSynthesisUtterance(routeText);
+      speech.lang = 'en-MY';
+      window.speechSynthesis.speak(speech);
+    } else {
+      document.getElementById('message').textContent =
+        routeText + ' Voice output is not supported in this browser.';
+    }
+  });
+
+  document.getElementById('routeInfo').addEventListener('click', () => {
+    document.getElementById('message').textContent =
+      'The blue dashed line is a sample route. A real version must ' +
+      'verify tactile paving, crossings, curb ramps, obstructions and ' +
+      'current accessibility reports before recommending a route.';
+  });
+
+  let reports = 3;
+  const reportCount = document.getElementById('reportCount');
+  const status = document.getElementById('reportStatus');
+
+  document.getElementById('reportForm').addEventListener('submit', event => {
+    event.preventDefault();
+    reports++;
+    reportCount.textContent = reports;
+    status.textContent =
+      'Demo report added to the on-screen count. It has NOT been saved ' +
+      'to a server or sent to any authority.';
+    event.target.reset();
+  });
+
+  document.getElementById('showHotspots').addEventListener('click', () => {
+    map.fitBounds(L.latLngBounds(obstacles.map(item => item.point)), {
+      padding: [30, 30]
+    });
+    document.getElementById('hotspotText').textContent =
+      'Showing example issue locations only. Real hotspots must be ' +
+      'calculated from verified, timestamped community reports.';
+  });
+</script>
+</body>
+</html>
+
